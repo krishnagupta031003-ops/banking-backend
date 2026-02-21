@@ -2,22 +2,21 @@ const mongoose = require("mongoose");
 const accountModel = require("../models/account.model");
 
 exports.createAccount = async (req, res) => {
-  const user_id = req.user.id;
+  const user = req.user.id;
   const { currency, status } = req.body;
   try {
-    
-
     const account = await accountModel.create({
-      user_id,
+      user,
       currency,
       status,
     });
 
     res.status(201).json({
       message: "account created successfully",
-     
+      account,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({
       message: error.message,
     });
@@ -32,7 +31,7 @@ exports.fetchAccount = async (req, res) => {
         message: "Invalid accountId",
       });
     }
-    const fetchedAccount = await accountModel.findById(user_id);
+    const fetchedAccount = await accountModel.findOne({ user: user_id });
     if (!fetchedAccount) {
       return res.status(404).json({
         message: "Account not found",

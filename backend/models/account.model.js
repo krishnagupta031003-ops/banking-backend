@@ -6,13 +6,15 @@ const accountSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: [true, "account must be associated with the user"],
-      index:true                         
+      index: true,
     },
     status: {
+      type: String,
       enum: {
         values: ["active", "frozen", "closed"],
         message: "status can be either active, frozen, closed",
       },
+      default: "active",
     },
     currency: {
       type: String,
@@ -20,9 +22,9 @@ const accountSchema = new mongoose.Schema(
       default: "INR",
     },
   },
-  { timeseries: true },
+  { timestamps: true },
 );
 
-accountSchema.index({user: 1 ,status:1})
- 
-module.exports = mongoose.model("Account",accountSchema)
+accountSchema.index({ user: 1, status: 1 });
+
+module.exports = mongoose.model("Account", accountSchema);
