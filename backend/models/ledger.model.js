@@ -50,3 +50,4 @@ ledgerSchema.pre("findOneAndDelete", preventLedgerModification);
 ledgerSchema.pre("findOneandReplace", preventLedgerModification);
 
 module.exports = mongoose.model("LedgerEntry", ledgerSchema);
+
