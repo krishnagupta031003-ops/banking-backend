@@ -125,15 +125,8 @@ const createTransaction = async (req, res) => {
       { session },
     );
 
-    const updateTransaction = await transactionModel.updateOne(
-      { _id: transaction._id },
-      {
-        $set: {
-          status: "COMPLETED",
-        },
-      },
-      { session },
-    );
+    transaction.status = "COMPLETED";
+    await transaction.save({ session });
 
     await session.commitTransaction();
     session.endSession();
@@ -144,8 +137,8 @@ const createTransaction = async (req, res) => {
     });
   } catch (error) {
     if (session) {
-      await session.abortTransaction();
       session.endSession();
+      await session.abortTransaction();
     }
     return res.status(500).json({
       message: error.message,
