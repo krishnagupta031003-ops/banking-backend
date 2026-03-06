@@ -5,6 +5,7 @@ const ledgerModel = require("../models/ledger.model");
 
 const intialLeadgerEntry = async (req, res) => {
   const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
+  let session;
   try {
     const fromAccountExist = await accountModel.findOne({
       _id: fromAccount,
@@ -67,10 +68,12 @@ const intialLeadgerEntry = async (req, res) => {
       });
     }
 
-    const session = await mongoose.startSession();
+    session = await mongoose.startSession();
     session.startTransaction();
 
-    const checkFromAccountBalance = await fromAccount.getBalance({ session });
+    const checkFromAccountBalance = await fromAccountExist.getBalance({
+      session,
+    });
 
     if (checkFromAccountBalance < amount) {
       await session.abortTransaction();
@@ -80,7 +83,7 @@ const intialLeadgerEntry = async (req, res) => {
       });
     }
 
-    const initialBalanceEntry = await transactionModel.create(
+    const initialBalanceTransactionEntry = await transactionModel.create(
       {
         fromAccount,
         toAccount,
@@ -90,30 +93,45 @@ const intialLeadgerEntry = async (req, res) => {
       { session },
     );
 
+
+     const initialDebitLedger = await ledgerModel.create(
+          {
+            account: fromAccount,
+            amount,
+            transactionType: "DEBIT",
+            transaction: initialBalanceTransactionEntry._id,
+          },
+          { session },
+        );
+
     const initialBalanceLedgerEntry = await ledgerModel.create(
       {
         account: toAccount,
         amount: amount,
         transactionType: "CREDIT",
-        transaction: initialBalanceEntry._id,
+        transaction: initialBalanceTransactionEntry._id,
       },
       { session },
     );
-
-   initialBalanceEntry.status = "COMPLETED";
-    await transaction.save({ session });
+    
+    initialBalanceTransactionEntry.status = "COMPLETED";
+    await initialBalanceTransactionEntry.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
     res.status(201).json({
       message: "transaction created successfully..",
-      transaction,
+      transaction: initialBalanceTransactionEntry,
     });
     // session.abortTransaction();
   } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+      session.endSession();
+    }
     return res.status(500).json({
-      message: "Server Error...",
+      message: error.message,
     });
   }
 };

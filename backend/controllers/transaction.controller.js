@@ -137,8 +137,8 @@ const createTransaction = async (req, res) => {
     });
   } catch (error) {
     if (session) {
-      session.endSession();
       await session.abortTransaction();
+      session.endSession();
     }
     return res.status(500).json({
       message: error.message,
