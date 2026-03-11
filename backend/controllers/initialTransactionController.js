@@ -4,27 +4,26 @@ const transactionModel = require("../models/transaction.model");
 const ledgerModel = require("../models/ledger.model");
 
 const intialLeadgerEntry = async (req, res) => {
-  const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
+  const { toAccount, amount, idempotencyKey } = req.body;
   let session;
   try {
-    const fromAccountExist = await accountModel.findOne({
-      _id: fromAccount,
-    });
-
     const toAccountExist = await accountModel.findOne({
       _id: toAccount,
     });
 
-    if (!fromAccountExist || !toAccountExist) {
+    if (!toAccountExist) {
       return res.status(400).json({
-        message: "no such system user account exists..",
+        message: "invalid toAccount..",
       });
     }
 
-    if (fromAccount === toAccount) {
-      return res.status(401).json({
-        message:
-          "WRONG CREADENTIALS , fromAccount and toAccount can not be same...",
+    const fromAccountExist = await accountModel.findOne({
+      user: req.user._id,
+    });
+
+    if (!fromAccountExist) {
+      return res.status(400).json({
+        message: "no such system user account exists..",
       });
     }
 
@@ -70,62 +69,63 @@ const intialLeadgerEntry = async (req, res) => {
 
     session = await mongoose.startSession();
     session.startTransaction();
+   
 
-    const checkFromAccountBalance = await fromAccountExist.getBalance({
-      session,
+    // const checkFromAccountBalance = await fromAccountExist.getBalance({
+    //   session,
+    // });
+
+    // if (checkFromAccountBalance < amount) {
+    //   await session.abortTransaction();
+    //   session.endSession();
+    //   return res.status(400).json({
+    //     message: `Insufficint balance in your account. Current balance is ${checkFromAccountBalance}. Requested balance is ${amount}`,
+    //   });
+    // }
+
+    const initialBalanceTransactionEntry = new transactionModel({
+      fromAccount: fromAccountExist._id,
+      toAccount,
+      amount,
+      idempotencyKey,
+      status: "PENDING",
     });
 
-    if (checkFromAccountBalance < amount) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        message: `Insufficint balance in your account. Current balance is ${checkFromAccountBalance}. Requested balance is ${amount}`,
-      });
-    }
-
-    const initialBalanceTransactionEntry = await transactionModel.create(
-      {
-        fromAccount,
-        toAccount,
-        amount,
-        idempotencyKey,
-      },
+    const initialDebitLedger = await ledgerModel.create(
+      [
+        {
+          account: fromAccountExist._id,
+          amount,
+          transactionType: "DEBIT",
+          transaction: initialBalanceTransactionEntry._id,
+        },
+      ],
       { session },
     );
-
-
-     const initialDebitLedger = await ledgerModel.create(
-          {
-            account: fromAccount,
-            amount,
-            transactionType: "DEBIT",
-            transaction: initialBalanceTransactionEntry._id,
-          },
-          { session },
-        );
 
     const initialBalanceLedgerEntry = await ledgerModel.create(
-      {
-        account: toAccount,
-        amount: amount,
-        transactionType: "CREDIT",
-        transaction: initialBalanceTransactionEntry._id,
-      },
+      [
+        {
+          account: toAccount,
+          amount: amount,
+          transactionType: "CREDIT",
+          transaction: initialBalanceTransactionEntry._id,
+        },
+      ],
       { session },
     );
-    
-    initialBalanceTransactionEntry.status = "COMPLETED";
+     initialBalanceTransactionEntry.status = "COMPLETED";
     await initialBalanceTransactionEntry.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
     res.status(201).json({
-      message: "transaction created successfully..",
+      message: "initial fund transaction completed successfully..",
       transaction: initialBalanceTransactionEntry,
     });
-    // session.abortTransaction();
   } catch (error) {
+    console.log("ERROR:", error);
     if (session) {
       await session.abortTransaction();
       session.endSession();

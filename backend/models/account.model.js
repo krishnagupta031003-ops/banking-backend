@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const ledgerModel = require("./ledger.model");
-
 const accountSchema = new mongoose.Schema(
   {
     user: {
@@ -25,7 +24,6 @@ const accountSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-
 
 accountSchema.index({ user: 1, status: 1 });
 

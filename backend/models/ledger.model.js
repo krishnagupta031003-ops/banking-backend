@@ -16,7 +16,7 @@ const ledgerSchema = new mongoose.Schema(
     },
     transaction: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Tansaction",
+      ref: "Transaction",
       required: [true, "Ledger must be associated with the transaction."],
     },
     transactionType: {
